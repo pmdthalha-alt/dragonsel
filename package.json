@@ -4,6 +4,13 @@
   "description": "Dragonsel is an all-in-one AI creation workspace for research, writing, design, video, websites, apps, games, and export.",
   "main": "ai.js",
   "scripts": {
+    "setup": "npm install && npm run setup:backend && npm run setup:frontend",
+    "setup:backend": "cd backend && npm install",
+    "setup:frontend": "cd frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "docker:up": "docker-compose up",
+    "docker:down": "docker-compose down",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
