@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dragonsel Design - Canva-like Editor</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fa; }
+        #app { height: 100vh; display: grid; grid-template-columns: 280px 1fr 300px; grid-template-rows: 60px 1fr; gap: 0; }
+        #header { grid-column: 1 / -1; background: white; border-bottom: 1px solid #e5e7eb; padding: 0 20px; display: flex; align-items: center; gap: 20px; }
+        #logo { font-weight: bold; font-size: 1.5rem; color: #1f2937; }
+        #toolbar { display: flex; gap: 8px; }
+        .tool-btn { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; }
+        .tool-btn.active { background: #3b82f6; color: white; }
+        #sidebar { background: white; border-right: 1px solid #e5e7eb; padding: 20px; overflow: auto; }
+        #sidebar h3 { margin: 0 0 12px; font-size: 0.9rem; color: #6b7280; text-transform: uppercase; }
+        .template-btn { width: 100%; height: 100px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #e5e7eb; background: #f9fafb; cursor: pointer; }
+        #canvas-container { background: #f3f4f6; display: flex; align-items: center; justify-content: center; position: relative; }
+        #canvas { border: 1px solid #d1d5db; box-shadow: 0 10px 25px rgba(0,0,0,0.1); cursor: grab; }
+        #canvas:active { cursor: grabbing; }
+        #properties { background: white; border-left: 1px solid #e5e7eb; padding: 20px; overflow: auto; }
+        .prop-group { margin-bottom: 20px; }
+        .prop-group label { display: block; font-size: 0.85rem; color: #6b7280; margin-bottom: 4px; }
+        .prop-group input, .prop-group select { width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; }
+        .layer { display: flex; align-items: center; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px; margin-bottom: 4px; cursor: pointer; }
+        .layer.active { background: #eff6ff; border-color: #3b82f6; }
+        .ai-section { background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        #aiPrompt { width: 100%; height: 80px; padding: 12px; border: 1px solid #f59e0b; border-radius: 6px; }
+        #generateAI { background: #f59e0b; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 8px; }
+        #downloadBtn { background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 8px; }
+        @media (max-width: 1200px) { #app { grid-template-columns: 1fr; } #sidebar, #properties { display: none; } }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header id="header">
+            <div id="logo">Dragonsel Design</div>
+            <div id="toolbar">
+                <button class="tool-btn active" data-tool="select">Select</button>
+                <button class="tool-btn" data-tool="text">Text</button>
+                <button class="tool-btn" data-tool="rect">Shape</button>
+                <button class="tool-btn" data-tool="image">Image</button>
+            </div>
+            <div style="margin-left:auto;">
+                <button onclick="loadTemplate('business')">Business</button>
+                <button onclick="loadTemplate('creative')">Creative</button>
+            </div>
+        </header>
+
+        <div id="sidebar">
+            <h3>Templates</h3>
+            <button class="template-btn" onclick="loadTemplate('poster')"></button>
+            <button class="template-btn" onclick="loadTemplate('social')"></button>
+            <button class="template-btn" onclick="loadTemplate('presentation')"></button>
+            <h3>AI Magic</h3>
+            <div class="ai-section">
+                <textarea id="aiPrompt" placeholder="Describe your design (e.g. 'modern poster for gaming launch')"></textarea>
+                <button id="generateAI" onclick="generateDesign()">Generate Design</button>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="canvas" width="1200" height="800"></canvas>
+        </div>
+
+        <div id="properties">
+            <div class="prop-group">
+                <label>Fill Color</label>
+                <input type="color" id="fillColor" value="#000000">
+            </div>
+            <div class="prop-group">
+                <label>Stroke Color</label>
+                <input type="color" id="strokeColor" value="#000000">
+            </div>
+            <div class="prop-group">
+                <label>Font Size</label>
+                <input type="range" id="fontSize" min="12" max="100" value="32">
+            </div>
+            <h3>Layers</h3>
+            <div id="layers"></div>
+            <button onclick="document.getElementById('downloadBtn').click();">Export</button>
+            <button id="downloadBtn" style="display:none;"></button>
+            <button onclick="saveDesign()">Save</button>
+            <button onclick="loadDesign()">Load</button>
+        </div>
+    </div>
+
+    <script src="ai.js"></script>
+    <script>
+        // Canva-like Fabric.js Canvas
+        const canvas = new fabric.Canvas('canvas', {
+            backgroundColor: '#ffffff',
+            selection: true,
+            preserveObjectStacking: true
+        });
+
+        let activeTool = 'select';
+        let currentObject = null;
+
+        // Toolbar tools (exact Canva copy)
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeTool = btn.dataset.tool;
+                canvas.isDrawingMode = false;
+            };
+        });
+
+        // Text tool
+        document.getElementById('canvas-container').onclick = (e) => {
+            if (activeTool === 'text') {
+                const text = new fabric.IText('Double-click to edit', {
+                    left: e.offsetX,
+                    top: e.offsetY,
+                    fontFamily: 'Inter',
+                    fontSize: 32,
+                    fill: '#000',
+                    originX: 'center',
+                    originY: 'center'
+                });
+                canvas.add(text);
+                canvas.setActiveObject(text);
+            }
+        };
+
+        // Shape tool
+        canvas.on('mouse:down', (opt) => {
+            if (activeTool === 'rect') {
+                const rect = new fabric.Rect({
+                    left: opt.e.offsetX,
+                    top: opt.e.offsetY,
+                    width: 100,
+                    height: 100,
+                    fill: '#3b82f6',
+                    stroke: '#1e40af',
+                    strokeWidth: 2
+                });
+                canvas.add(rect);
+                canvas.setActiveObject(rect);
+            }
+        });
+
+        // Image upload
+        document.querySelector('[data-tool="image"]').onclick = () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    fabric.Image.fromURL(ev.target.result, (img) => {
+                        img.scale(0.5);
+                        canvas.add(img);
+                    });
+                };
+                reader.readAsDataURL(file);
+            };
+            input.click();
+        };
+
+        // Properties panel sync
+        canvas.on('selection:created', updateProperties);
+        canvas.on('selection:updated', updateProperties);
+        canvas.on('object:modified', updateProperties);
+        canvas.on('selection:cleared', clearProperties);
+
+        function updateProperties(opt) {
+            currentObject = opt.target || opt.selected[0];
+            if (currentObject) {
+                document.getElementById('fillColor').value = currentObject.fill;
+                document.getElementById('strokeColor').value = currentObject.stroke;
+                document.getElementById('fontSize').value = currentObject.fontSize || 32;
+                updateLayers();
+            }
+        }
+
+        function clearProperties() {
+            currentObject = null;
+        }
+
+        ['fillColor', 'strokeColor', 'fontSize'].forEach(id => {
+            document.getElementById(id).onchange = (e) => {
+                if (currentObject) {
+                    currentObject[e.target.id.replace('Color', 'color')] = e.target.value;
+                    currentObject.fontSize = parseInt(e.target.value);
+                    canvas.renderAll();
+                }
+            };
+        });
+
+        function updateLayers() {
+            const layersDiv = document.getElementById('layers');
+            layersDiv.innerHTML = canvas.getObjects().map((obj, i) => `
+                <div class="layer ${canvas.getActiveObject() === obj ? 'active' : ''}" onclick="canvas.setActiveObject(canvas.item(${i}));canvas.requestRenderAll();">
+                    ${obj.type} #${i+1}
+                </div>
+            `).join('');
+        }
+
+        // Templates (Canva-style)
+        const templates = {
+            poster: {
+                objects: [
+                    new fabric.Rect({left: 200, top: 100, width: 200, height: 300, fill: '#3b82f6'}),
+                    new fabric.Text('Your Design', {left: 300, top: 200, fontSize: 40, fill: 'white', originX: 'center'})
+                ]
+            },
+            social: {
+                objects: [
+                    new fabric.Circle({left: 300, top: 200, radius: 150, fill: '#10b981'}),
+                    new fabric.Text('Social', {left: 600, top: 400, fontSize: 60, fill: 'white', originX: 'center', originY: 'center'})
+                ]
+            },
+            business: {
+                objects: [
+                    new fabric.Rect({left: 150, top: 150, width: 300, height: 150, fill: '#f59e0b', rx: 10}),
+                    new fabric.Text('Business Card', {left: 300, top: 225, fontSize: 28, fill: 'white', originX: 'center', originY: 'center'})
+                ]
+            },
+            creative: {
+                objects: [
+                    new fabric.Triangle({left: 400, top: 100, width: 200, height: 200, fill: '#ec4899'}),
+                    new fabric.Text('Creative', {left: 500, top: 250, fontSize: 36, fill: 'white', originX: 'center', originY: 'center'})
+                ]
+            }
+        };
+
+        window.loadTemplate = (name) => {
+            canvas.clear();
+            templates[name].objects.forEach(obj => canvas.add(obj));
+            canvas.renderAll();
+        };
+
+        // AI Generation (Magic Studio)
+        window.generateDesign = async () => {
+            const prompt = document.getElementById('aiPrompt').value;
+            if (!window.DragonselAI.API_KEY) {
+                alert('Enter Groq API key first!');
+                return;
+            }
+            try {
+                const aiDesc = await window.DragonselAI.generate('design', prompt);
+                // Parse AI response and add to canvas
+                const desc = JSON.parse(aiDesc.match(/\{.*\}/)?.[0] || '{}');
+                const rect = new fabric.Rect({
+                    left: 100, top: 100, width: 200, height: 200,
+                    fill: desc.colors?.[0] || '#3b82f6'
+                });
+                const text = new fabric.Text(desc.title || 'AI Design', {
+                    left: 200, top: 150, fontSize: 32, fill: 'white',
+                    originX: 'center', originY: 'center'
+                });
+                canvas.add(rect, text);
+                canvas.renderAll();
+            } catch (e) {
+                alert('AI error: ' + e.message);
+            }
+        };
+
+        // Save/Load (Memory)
+        window.saveDesign = () => {
+            localStorage.setItem('dragonsel-design', JSON.stringify(canvas.toJSON()));
+            alert('Saved!');
+        };
+
+        window.loadDesign = () => {
+            const json = localStorage.getItem('dragonsel-design');
+            if (json) {
+                canvas.loadFromJSON(json, canvas.renderAll.bind(canvas));
+            }
+        };
+
+        // Export
+        document.getElementById('downloadBtn').onclick = () => {
+            const dataURL = canvas.toDataURL({format: 'png', quality: 1});
+            const link = document.createElement('a');
+            link.download = 'dragonsel-design.png';
+            link.href = dataURL;
+            link.click();
+        };
+
+        // Drag canvas pan
+        let isDragging = false;
+        let lastX, lastY;
+        canvas.on('mouse:down', (opt) => {
+            isDragging = !canvas.getActiveObject();
+            lastX = opt.e.clientX;
+            lastY = opt.e.clientY;
+        });
+        canvas.on('mouse:move', (opt) => {
+            if (isDragging) {
+                const delta = new fabric.Point(opt.e.clientX - lastX, opt.e.clientY - lastY);
+                canvas.relativePan(delta);
+                lastX = opt.e.clientX;
+                lastY = opt.e.clientY;
+            }
+        });
+        canvas.on('mouse:up', () => isDragging = false);
+
+        // Zoom
+        canvas.on('mouse:wheel', (opt) => {
+            const delta = opt.e.deltaY > 0 ? 0.9 : 1.1;
+            canvas.setZoom(canvas.getZoom() * delta);
+            opt.e.preventDefault();
+            opt.e.stopPropagation();
+        });
+
+        updateLayers();
+    </script>
+</body>
+</html>

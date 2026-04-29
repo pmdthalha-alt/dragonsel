@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dragonsel Studio</title>
+  <meta name="description" content="Dragonsel is one AI workspace for research, slides, design, video, websites, apps, and exports.">
+  <link rel="stylesheet" href="app.css">
+  <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Dragonsel Studio">
+        <span class="brand-mark">D</span>
+        <span>Dragonsel</span>
+      </a>
+      <nav class="topnav" aria-label="Main">
+        <a href="#workspace">Workspace</a>
+        <a href="#editor">Editor</a>
+        <a href="#export">Export</a>
+      </nav>
+      <div class="top-actions">
+        <button class="ghost-btn" id="newProjectBtn" type="button">New</button>
+        <button class="primary-btn" id="saveProjectBtn" type="button">Save</button>
+      </div>
+    </header>
+
+    <main class="workspace" id="workspace">
+      <aside class="brain-panel" aria-label="Project brain">
+        <div class="panel-section project-card">
+          <span class="eyebrow">Project Brain</span>
+          <input id="projectName" class="project-name-input" value="Dragonsel Launch System" aria-label="Project name">
+          <p class="quiet">Shared context used by every generator.</p>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-row">
+            <strong>Context</strong>
+            <span id="saveStatus">Saved</span>
+          </div>
+          <input id="audienceInput" type="text" placeholder="Audience" value="Creators, students, founders">
+          <input id="goalInput" type="text" placeholder="Goal" value="Create everything in one place">
+          <input id="styleInput" type="text" placeholder="Style" value="clean, premium, fast">
+        </div>
+
+        <div class="panel-section">
+          <div class="section-row">
+            <strong>Sources</strong>
+            <button class="mini-btn" id="addSourceBtn" type="button">Add</button>
+          </div>
+          <textarea id="sourceInput" placeholder="Paste notes, links, transcript text, or source summaries."></textarea>
+          <div class="source-list" id="sourceList"></div>
+        </div>
+
+        <div class="panel-section">
+          <strong>Generated Assets</strong>
+          <div class="asset-list" id="assetList"></div>
+        </div>
+      </aside>
+
+      <section class="studio-main">
+        <section class="command-card">
+          <div>
+            <span class="eyebrow">Dragonsel Studio</span>
+            <h1>Pick what to make. Describe it. Generate the first version.</h1>
+            <p>Research, slides, design, video, websites, apps, and exports stay connected through one project brain.</p>
+          </div>
+          <div class="prompt-card">
+            <label for="promptInput">What should Dragonsel create?</label>
+            <textarea id="promptInput">Create a launch system for an AI workspace that combines research notes, slides, brand design, promo video, landing page, app dashboard, and export package.</textarea>
+            <div class="prompt-actions">
+              <button class="primary-btn" id="generateBtn" type="button">Generate</button>
+              <button class="secondary-btn" id="generateAllBtn" type="button">Generate All</button>
+              <button class="ghost-btn" id="clearBtn" type="button">Clear</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="tool-strip" aria-label="Creation tools">
+          <button class="tool-tab active" data-tool="research" type="button">Research</button>
+          <button class="tool-tab" data-tool="audio" type="button">Audio</button>
+          <button class="tool-tab" data-tool="slides" type="button">Slides</button>
+          <button class="tool-tab" data-tool="design" type="button">Design</button>
+          <button class="tool-tab" data-tool="video" type="button">Video</button>
+          <button class="tool-tab" data-tool="website" type="button">Website</button>
+          <button class="tool-tab" data-tool="app" type="button">App</button>
+          <button class="tool-tab" data-tool="export" type="button">Export</button>
+        </section>
+
+        <section class="editor-grid" id="editor">
+          <section class="editor-window">
+            <div class="editor-header">
+              <div>
+                <span class="eyebrow" id="toolLabel">Research Generator</span>
+                <h2 id="toolTitle">Source notes, summary, and questions</h2>
+              </div>
+              <span class="status-pill" id="toolStatus">Ready</span>
+            </div>
+            <div class="editor-body" id="editorBody">
+              <div class="empty-state">
+                <strong>Ready to generate.</strong>
+                <p>Choose a tool, describe the thing you want, then press Generate.</p>
+              </div>
+            </div>
+          </section>
+
+          <aside class="inspector">
+            <span class="eyebrow">Build Pipeline</span>
+            <div class="pipeline-list" id="pipelineList"></div>
+            <div class="inspector-card">
+              <strong>Shared Context</strong>
+              <p id="contextPreview">Your audience, goal, style, sources, and generated assets are reused across tools.</p>
+            </div>
+            <div class="inspector-card">
+              <strong>Export</strong>
+              <button class="secondary-btn full" id="downloadCurrentBtn" type="button">Download Current</button>
+              <button class="primary-btn full" id="downloadProjectBtn" type="button">Download Project</button>
+            </div>
+          </aside>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
