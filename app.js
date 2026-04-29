@@ -2,7 +2,8 @@ const state = {
   activeTool: "research",
   project: loadProject(),
   currentPayload: null,
-  canvas: null
+  canvas: null,
+  isGenerating: false
 };
 
 const toolMeta = {
@@ -56,42 +57,105 @@ const toolMeta = {
   }
 };
 
+// Initialize on DOM ready
 document.addEventListener("DOMContentLoaded", () => {
   bindUI();
   hydrateProject();
   selectTool("research", false);
 });
 
+// Debug API
 window.__dragonselDebug = {
-  canvasObjectCount: () => state.canvas?.getObjects?.().length ?? 0
+  canvasObjectCount: () => state.canvas?.getObjects?.().length ?? 0,
+  currentState: () => state,
+  exportProject: () => downloadProject()
 };
 
+function generateUUID() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback UUID v4 generator
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === "x" ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 function bindUI() {
+  // Tool tab navigation
   document.querySelectorAll(".tool-tab").forEach((tab) => {
-    tab.addEventListener("click", () => selectTool(tab.dataset.tool));
+    tab.addEventListener("click", () => {
+      selectTool(tab.dataset.tool);
+      updateTabAccessibility(tab);
+    });
   });
 
-  document.getElementById("generateBtn")?.addEventListener("click", generateActiveTool);
-  document.getElementById("generateAllBtn")?.addEventListener("click", generateAllTools);
+  // Navigation links
+  document.querySelectorAll("[data-section]").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const section = link.dataset.section;
+      const element = document.getElementById(section);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  });
+
+  // Action buttons
+  document.getElementById("generateBtn")?.addEventListener("click", () => {
+    if (!state.isGenerating) {
+      generateActiveTool();
+    }
+  });
+  
+  document.getElementById("generateAllBtn")?.addEventListener("click", () => {
+    if (!state.isGenerating) {
+      generateAllTools();
+    }
+  });
+  
   document.getElementById("clearBtn")?.addEventListener("click", () => {
     document.getElementById("promptInput").value = "";
   });
+
   document.getElementById("addSourceBtn")?.addEventListener("click", addSource);
   document.getElementById("saveProjectBtn")?.addEventListener("click", saveProjectFromUI);
   document.getElementById("newProjectBtn")?.addEventListener("click", newProject);
   document.getElementById("downloadCurrentBtn")?.addEventListener("click", downloadCurrent);
   document.getElementById("downloadProjectBtn")?.addEventListener("click", downloadProject);
 
+  // Auto-save on input
   ["projectName", "audienceInput", "goalInput", "styleInput"].forEach((id) => {
     document.getElementById(id)?.addEventListener("input", debounce(saveProjectFromUI, 350));
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      e.preventDefault();
+      saveProjectFromUI();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (!state.isGenerating) generateActiveTool();
+    }
   });
 }
 
 function hydrateProject() {
-  document.getElementById("projectName").value = state.project.name;
-  document.getElementById("audienceInput").value = state.project.context.audience;
-  document.getElementById("goalInput").value = state.project.context.goal;
-  document.getElementById("styleInput").value = state.project.context.style;
+  const projectNameInput = document.getElementById("projectName");
+  const audienceInput = document.getElementById("audienceInput");
+  const goalInput = document.getElementById("goalInput");
+  const styleInput = document.getElementById("styleInput");
+
+  if (projectNameInput) projectNameInput.value = state.project.name;
+  if (audienceInput) audienceInput.value = state.project.context.audience;
+  if (goalInput) goalInput.value = state.project.context.goal;
+  if (styleInput) styleInput.value = state.project.context.style;
+
   renderSources();
   renderAssets();
 }
@@ -101,7 +165,9 @@ function loadProject() {
   if (saved) {
     try {
       return JSON.parse(saved);
-    } catch {}
+    } catch (e) {
+      console.warn("Failed to load saved project:", e);
+    }
   }
   return {
     name: "Dragonsel Launch System",
@@ -116,26 +182,39 @@ function loadProject() {
 }
 
 function saveProjectFromUI() {
-  state.project.name = document.getElementById("projectName").value.trim() || "Untitled Project";
-  state.project.context.audience = document.getElementById("audienceInput").value.trim();
-  state.project.context.goal = document.getElementById("goalInput").value.trim();
-  state.project.context.style = document.getElementById("styleInput").value.trim();
-  localStorage.setItem("dragonsel_studio_project", JSON.stringify(state.project));
-  setSaveStatus("Saved");
+  const projectNameInput = document.getElementById("projectName");
+  const audienceInput = document.getElementById("audienceInput");
+  const goalInput = document.getElementById("goalInput");
+  const styleInput = document.getElementById("styleInput");
+
+  state.project.name = (projectNameInput?.value || "").trim() || "Untitled Project";
+  state.project.context.audience = (audienceInput?.value || "").trim();
+  state.project.context.goal = (goalInput?.value || "").trim();
+  state.project.context.style = (styleInput?.value || "").trim();
+
+  try {
+    localStorage.setItem("dragonsel_studio_project", JSON.stringify(state.project));
+    setSaveStatus("Saved");
+  } catch (e) {
+    console.warn("Failed to save project:", e);
+    setSaveStatus("Save failed");
+  }
   renderAssets();
 }
 
 function newProject() {
-  state.project = {
-    name: "Untitled Project",
-    context: { audience: "", goal: "", style: "" },
-    sources: [],
-    assets: []
-  };
-  state.currentPayload = null;
-  hydrateProject();
-  document.getElementById("editorBody").innerHTML = `<div class="empty-state"><strong>New project ready.</strong><p>Choose a tool and generate the first artifact.</p></div>`;
-  setSaveStatus("New");
+  if (confirm("Create a new project? Current work won't be saved.")) {
+    state.project = {
+      name: "Untitled Project",
+      context: { audience: "", goal: "", style: "" },
+      sources: [],
+      assets: []
+    };
+    state.currentPayload = null;
+    hydrateProject();
+    document.getElementById("editorBody").innerHTML = `<div class="empty-state"><strong>New project ready.</strong><p>Choose a tool and generate the first artifact.</p></div>`;
+    setSaveStatus("New");
+  }
 }
 
 function setSaveStatus(text) {
@@ -143,28 +222,35 @@ function setSaveStatus(text) {
   if (!status) return;
   status.textContent = text;
   clearTimeout(setSaveStatus.timer);
-  setSaveStatus.timer = setTimeout(() => {
-    status.textContent = "Saved";
-  }, 1200);
+  if (text !== "Saved") {
+    setSaveStatus.timer = setTimeout(() => {
+      status.textContent = "Saved";
+    }, 2000);
+  }
 }
 
 function addSource() {
   const input = document.getElementById("sourceInput");
-  const value = input.value.trim();
-  if (!value) return;
+  const value = (input?.value || "").trim();
+  if (!value) {
+    alert("Please enter source material.");
+    return;
+  }
   state.project.sources.push({
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    id: generateUUID(),
     title: value.split(/\s+/).slice(0, 6).join(" "),
     content: value,
     createdAt: Date.now()
   });
-  input.value = "";
+  if (input) input.value = "";
   saveProjectFromUI();
   renderSources();
+  setSaveStatus("Source added");
 }
 
 function renderSources() {
   const list = document.getElementById("sourceList");
+  if (!list) return;
   list.innerHTML = state.project.sources.map((source) => `
     <div class="source-item">
       <strong>${escapeHTML(source.title)}</strong>
@@ -175,6 +261,7 @@ function renderSources() {
 
 function renderAssets() {
   const list = document.getElementById("assetList");
+  if (!list) return;
   list.innerHTML = state.project.assets.slice(-8).reverse().map((asset) => `
     <div class="asset-item">
       <strong>${escapeHTML(asset.tool)}</strong>
@@ -186,7 +273,9 @@ function renderAssets() {
 function selectTool(tool, openStarter = true) {
   state.activeTool = tool;
   document.querySelectorAll(".tool-tab").forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.tool === tool);
+    const isActive = tab.dataset.tool === tool;
+    tab.classList.toggle("active", isActive);
+    tab.setAttribute("aria-selected", isActive);
   });
   const meta = toolMeta[tool];
   document.getElementById("toolLabel").textContent = meta.label;
@@ -200,24 +289,72 @@ function selectTool(tool, openStarter = true) {
   }
 }
 
+function updateTabAccessibility(tab) {
+  const currentActive = document.querySelector(".tool-tab.active");
+  if (currentActive) {
+    currentActive.setAttribute("aria-selected", "false");
+  }
+  tab.setAttribute("aria-selected", "true");
+}
+
 function renderPipeline(steps) {
-  document.getElementById("pipelineList").innerHTML = steps.map((step) => `<span>${escapeHTML(step)}</span>`).join("");
+  const pipelineList = document.getElementById("pipelineList");
+  if (pipelineList) {
+    pipelineList.innerHTML = steps.map((step) => `<span>${escapeHTML(step)}</span>`).join("");
+  }
 }
 
 function generateActiveTool() {
-  const payload = makePayload(state.activeTool);
-  renderTool(state.activeTool, payload);
-  saveAsset(state.activeTool, payload.title, payload);
+  state.isGenerating = true;
+  updateGenerateButtons(true);
+  
+  try {
+    const payload = makePayload(state.activeTool);
+    renderTool(state.activeTool, payload);
+    saveAsset(state.activeTool, payload.title, payload);
+    setSaveStatus("Generated");
+  } catch (e) {
+    console.error("Generation failed:", e);
+    setSaveStatus("Error generating");
+    alert("Failed to generate. Please try again.");
+  } finally {
+    state.isGenerating = false;
+    updateGenerateButtons(false);
+  }
 }
 
 function generateAllTools() {
-  ["research", "audio", "slides", "design", "video", "website", "app", "export"].forEach((tool) => {
-    const payload = makePayload(tool);
-    saveAsset(tool, payload.title, payload);
-  });
-  selectTool("export", false);
-  renderTool("export", makePayload("export"));
-  setSaveStatus("Generated all");
+  state.isGenerating = true;
+  updateGenerateButtons(true);
+  
+  try {
+    ["research", "audio", "slides", "design", "video", "website", "app", "export"].forEach((tool) => {
+      const payload = makePayload(tool);
+      saveAsset(tool, payload.title, payload);
+    });
+    selectTool("export", false);
+    renderTool("export", makePayload("export"));
+    setSaveStatus("Generated all");
+  } catch (e) {
+    console.error("Generate all failed:", e);
+    setSaveStatus("Error generating");
+  } finally {
+    state.isGenerating = false;
+    updateGenerateButtons(false);
+  }
+}
+
+function updateGenerateButtons(isGenerating) {
+  const generateBtn = document.getElementById("generateBtn");
+  const generateAllBtn = document.getElementById("generateAllBtn");
+  if (generateBtn) {
+    generateBtn.disabled = isGenerating;
+    generateBtn.textContent = isGenerating ? "Generating..." : "Generate";
+  }
+  if (generateAllBtn) {
+    generateAllBtn.disabled = isGenerating;
+    generateAllBtn.textContent = isGenerating ? "Generating..." : "Generate All";
+  }
 }
 
 function renderTool(tool, payload) {
@@ -239,12 +376,13 @@ function renderTool(tool, payload) {
 }
 
 function makePayload(tool) {
-  const prompt = document.getElementById("promptInput").value.trim() || "Create a Dragonsel project";
+  const prompt = (document.getElementById("promptInput")?.value || "").trim() || "Create a Dragonsel project";
   const title = titleFromPrompt(prompt);
   const context = { ...state.project.context };
   const sources = state.project.sources;
 
   const common = { title, prompt, context, sources, createdAt: new Date().toISOString() };
+  
   if (tool === "research") {
     return {
       ...common,
@@ -351,7 +489,7 @@ function renderResearch(payload) {
 
 function renderAudio(payload) {
   document.getElementById("editorBody").innerHTML = `
-    <textarea class="editor-textarea">${payload.sections.map((section) => `Host ${section.host}: ${section.text}`).join("\n\n")}</textarea>
+    <textarea class="editor-textarea" contenteditable="false">${payload.sections.map((section) => `Host ${section.host}: ${section.text}`).join("\n\n")}</textarea>
   `;
 }
 
@@ -394,7 +532,7 @@ function renderWebsite(payload) {
   document.getElementById("editorBody").innerHTML = `
     <div class="website-editor">
       <textarea class="code-editor" id="websiteCode">${escapeHTML(payload.html)}</textarea>
-      <iframe class="preview-frame" id="websitePreview" title="Website preview"></iframe>
+      <iframe class="preview-frame" id="websitePreview" title="Website preview" sandbox="allow-scripts"></iframe>
     </div>
   `;
   const code = document.getElementById("websiteCode");
@@ -415,7 +553,7 @@ function renderApp(payload) {
         <article class="artifact-card"><strong>Data Model</strong><ul>${payload.data.map((item) => `<li contenteditable="true">${escapeHTML(item)}</li>`).join("")}</ul></article>
         <article class="artifact-card"><strong>Actions</strong><ul>${payload.actions.map((item) => `<li contenteditable="true">${escapeHTML(item)}</li>`).join("")}</ul></article>
       </div>
-      <iframe class="preview-frame" title="App preview" srcdoc="${escapeAttr(appHTML(payload))}"></iframe>
+      <iframe class="preview-frame" title="App preview" sandbox="allow-scripts" srcdoc="${escapeAttr(appHTML(payload))}"></iframe>
     </div>
   `;
 }
@@ -436,7 +574,7 @@ function renderExport(payload) {
       </article>
       <article class="artifact-card">
         <strong>Manifest</strong>
-        <textarea class="editor-textarea">${JSON.stringify(manifest, null, 2)}</textarea>
+        <textarea class="editor-textarea" contenteditable="false">${JSON.stringify(manifest, null, 2)}</textarea>
       </article>
     </div>
   `;
@@ -447,18 +585,18 @@ function renderDesignEditor(payload) {
     <div class="design-editor">
       <aside class="design-left">
         <strong>Templates</strong>
-        <button class="template-btn active" data-template="launch">Launch Post</button>
-        <button class="template-btn" data-template="thumbnail">Video Thumbnail</button>
-        <button class="template-btn" data-template="slide">Pitch Slide</button>
-        <button class="template-btn" data-template="poster">Event Poster</button>
+        <button class="template-btn active" data-template="launch" type="button">Launch Post</button>
+        <button class="template-btn" data-template="thumbnail" type="button">Video Thumbnail</button>
+        <button class="template-btn" data-template="slide" type="button">Pitch Slide</button>
+        <button class="template-btn" data-template="poster" type="button">Event Poster</button>
         <strong class="eyebrow">Magic Layouts</strong>
-        <button class="smart-btn" data-layout="brand">Brand System</button>
-        <button class="smart-btn" data-layout="social">Social Campaign</button>
-        <button class="smart-btn" data-layout="pitch">Pitch Story</button>
-        <button class="smart-btn" data-layout="promo">Promo Thumbnail</button>
+        <button class="smart-btn" data-layout="brand" type="button">Brand System</button>
+        <button class="smart-btn" data-layout="social" type="button">Social Campaign</button>
+        <button class="smart-btn" data-layout="pitch" type="button">Pitch Story</button>
+        <button class="smart-btn" data-layout="promo" type="button">Promo Thumbnail</button>
         <strong class="eyebrow">Brand Kit</strong>
         <div class="brand-swatches">
-          ${payload.colors.map((color) => `<button data-color="${color}" style="background:${color}" aria-label="${color}"></button>`).join("")}
+          ${payload.colors.map((color) => `<button data-color="${color}" style="background:${color}" type="button" aria-label="Color ${color}"></button>`).join("")}
         </div>
         <textarea class="design-prompt" id="designPrompt">${escapeHTML(JSON.stringify(payload, null, 2))}</textarea>
         <button class="primary-btn full" id="applyDesignBtn" type="button">Generate Layout</button>
@@ -622,7 +760,7 @@ function addCircle(left, top, radius, fill, name) {
 
 function addCanvasText(text, left = 120, top = 170, size = 34, fill = "#111113", width = 420, name = "Text") {
   const obj = new fabric.Textbox(text, {
-    left, top, width, fill, fontSize: size, fontFamily: "Inter, Arial, sans-serif", fontWeight: size > 44 ? 900 : 750, lineHeight: 0.96, name
+    left, top, width, fill, fontSize: size, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", fontWeight: size > 44 ? 900 : 750, lineHeight: 0.96, name
   });
   state.canvas.add(obj);
   state.canvas.setActiveObject(obj);
@@ -662,6 +800,7 @@ function deleteActive() {
   if (!active) return;
   state.canvas.remove(active);
   state.canvas.requestRenderAll();
+  syncLayerPanel();
 }
 
 function handleImageUpload(event) {
@@ -690,9 +829,10 @@ function syncLayerPanel() {
   const meta = document.getElementById("selectedMeta");
   if (!canvas || !list) return;
   const objects = canvas.getObjects().filter((obj) => obj.selectable !== false);
-  list.innerHTML = objects.slice().reverse().map((obj) => {
+  list.innerHTML = objects.slice().reverse().map((obj, reversedIndex) => {
+    const originalIndex = objects.length - 1 - reversedIndex;
     const name = obj.name || obj.text || obj.type;
-    return `<button type="button" data-index="${objects.indexOf(obj)}">${escapeHTML(String(name).slice(0, 32))}</button>`;
+    return `<button type="button" data-index="${originalIndex}" title="${escapeHTML(String(name))}">${escapeHTML(String(name).slice(0, 32))}</button>`;
   }).join("");
   list.querySelectorAll("button").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -724,7 +864,7 @@ function exportCanvasPng() {
 
 function saveAsset(tool, title, payload) {
   const asset = {
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    id: generateUUID(),
     tool,
     title,
     payload,
@@ -738,7 +878,10 @@ function saveAsset(tool, title, payload) {
 
 function downloadCurrent() {
   if (state.activeTool === "design" && state.canvas) return exportCanvasPng();
-  if (!state.currentPayload) return;
+  if (!state.currentPayload) {
+    alert("Nothing to download. Generate some content first.");
+    return;
+  }
   downloadBlob(`${safeFileName(state.currentPayload.payload.title)}-${state.activeTool}.json`, JSON.stringify(state.currentPayload.payload, null, 2), "application/json");
 }
 
@@ -753,7 +896,7 @@ function websiteHTML(title, prompt) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body{margin:0;font-family:Inter,Arial,sans-serif;color:#111;background:#f7f6f2}
+body{margin:0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;color:#111;background:#f7f6f2}
 header{padding:56px 7vw;background:#111;color:white}
 h1{font-size:clamp(42px,8vw,86px);line-height:.95;margin:0 0 18px}
 p{font-size:18px;line-height:1.55;color:#696966}
@@ -761,23 +904,25 @@ header p{color:rgba(255,255,255,.72);max-width:720px}
 section{padding:44px 7vw}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .card{padding:22px;border:1px solid #ddd;border-radius:14px;background:white}
-a{display:inline-flex;margin-top:20px;padding:13px 18px;border-radius:10px;background:#b4122d;color:white;text-decoration:none;font-weight:800}
+a{display:inline-flex;margin-top:20px;padding:13px 18px;border-radius:10px;background:#b4122d;color:white;text-decoration:none;font-weight:800;cursor:pointer}
+a:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(180,18,45,.2)}
 @media(max-width:800px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header><h1>${escapeHTML(title)}</h1><p>${escapeHTML(prompt)}</p><a href="#">Start creating</a></header>
-<section><h2>Everything connected</h2><div class="grid"><div class="card">Research</div><div class="card">Design</div><div class="card">Video</div><div class="card">Website</div><div class="card">App</div><div class="card">Export</div></div></section>
+<header><h1>${escapeHTML(title)}</h1><p>${escapeHTML(prompt)}</p><a href="javascript:void(0)">Start creating</a></header>
+<section><h2>Everything connected</h2><div class="grid"><div class="card">Research</div><div class="card">Design</div><div class="card">Video</div><div class="card">Website</div><div class="card">Apps</div><div class="card">Export</div></div></section>
+<section><a href="javascript:void(0)">Get started free</a></section>
 </body>
 </html>`;
 }
 
 function appHTML(payload) {
-  return `<!doctype html><html><body style="margin:0;font-family:Inter,Arial,sans-serif;background:#f5f5f2;color:#111">
+  return `<!doctype html><html><body style="margin:0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;background:#f5f5f2;color:#111">
 <main style="padding:24px">
-<h1>${escapeHTML(payload.title)}</h1>
+<h1 style="margin:0 0 20px">${escapeHTML(payload.title)}</h1>
 <section style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-${payload.screens.map((screen) => `<article style="padding:18px;border-radius:12px;background:white;border:1px solid #ddd"><strong>${escapeHTML(screen)}</strong><p>Generated screen preview</p></article>`).join("")}
+${payload.screens.map((screen) => `<article style="padding:18px;border-radius:12px;background:white;border:1px solid #ddd"><strong>${escapeHTML(screen)}</strong><p style="color:#696966;margin:8px 0 0">Generated screen preview</p></article>`).join("")}
 </section>
 </main></body></html>`;
 }
