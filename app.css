@@ -14,6 +14,7 @@
   --shadow: 0 28px 90px rgba(20, 19, 17, 0.14);
   --soft-shadow: 0 12px 34px rgba(20, 19, 17, 0.08);
   --radius: 14px;
+  --transition: 160ms ease;
 }
 
 * {
@@ -32,13 +33,16 @@ body {
     radial-gradient(circle at 8% -8%, rgba(180, 18, 45, 0.13), transparent 34%),
     radial-gradient(circle at 98% 0%, rgba(10, 132, 255, 0.12), transparent 32%),
     linear-gradient(180deg, #fbfaf7, var(--bg));
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 button,
 input,
 textarea {
   font: inherit;
+  letter-spacing: inherit;
 }
 
 button {
@@ -48,6 +52,7 @@ button {
 a {
   color: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
 h1,
@@ -55,6 +60,15 @@ h2,
 h3,
 p {
   margin-top: 0;
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 
 .app-shell {
@@ -84,6 +98,12 @@ p {
   align-items: center;
   gap: 10px;
   font-weight: 900;
+  font-size: 1.05rem;
+  transition: transform var(--transition);
+}
+
+.brand:hover {
+  transform: scale(1.02);
 }
 
 .brand-mark {
@@ -94,6 +114,8 @@ p {
   border-radius: 10px;
   color: white;
   background: linear-gradient(135deg, #111113, var(--red));
+  font-weight: 900;
+  font-size: 1.2rem;
 }
 
 .topnav,
@@ -111,9 +133,11 @@ p {
   color: var(--muted);
   font-size: 0.92rem;
   font-weight: 800;
+  transition: background var(--transition), color var(--transition);
 }
 
-.topnav a:hover {
+.topnav a:hover,
+.topnav a:focus-visible {
   color: var(--ink);
   background: var(--soft);
 }
@@ -132,7 +156,8 @@ p {
   border: 1px solid transparent;
   border-radius: 10px;
   font-weight: 900;
-  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  font-size: 0.95rem;
+  transition: transform var(--transition), background var(--transition), border-color var(--transition), box-shadow var(--transition);
 }
 
 .primary-btn {
@@ -141,10 +166,26 @@ p {
   box-shadow: 0 12px 28px rgba(17, 17, 19, 0.18);
 }
 
+.primary-btn:hover,
+.primary-btn:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(17, 17, 19, 0.24);
+}
+
+.primary-btn:active {
+  transform: translateY(0);
+}
+
 .secondary-btn {
   color: var(--ink);
   background: var(--solid);
   border-color: var(--line);
+}
+
+.secondary-btn:hover,
+.secondary-btn:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--line-strong);
 }
 
 .ghost-btn,
@@ -154,13 +195,13 @@ p {
   border-color: var(--line);
 }
 
-.primary-btn:hover,
-.secondary-btn:hover,
 .ghost-btn:hover,
+.mini-btn:hover,
 .tool-tab:hover,
 .template-btn:hover,
 .smart-btn:hover {
   transform: translateY(-1px);
+  background: var(--soft);
 }
 
 .full {
@@ -195,7 +236,21 @@ p {
   gap: 12px;
   align-content: start;
   max-height: calc(100vh - 104px);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.brain-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.brain-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.brain-panel::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 3px;
 }
 
 .panel-section {
@@ -227,6 +282,7 @@ p {
 
 .quiet {
   color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .project-name-input,
@@ -243,6 +299,15 @@ p {
   color: var(--ink);
   background: var(--solid);
   outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.project-name-input:focus,
+.panel-section input:focus,
+.panel-section textarea:focus,
+.prompt-card textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.1);
 }
 
 .project-name-input {
@@ -308,6 +373,8 @@ p {
 .asset-item strong {
   display: block;
   margin-bottom: 3px;
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .source-item span,
@@ -336,13 +403,14 @@ p {
   margin-bottom: 14px;
   font-size: clamp(2.25rem, 4.8vw, 5rem);
   line-height: 0.96;
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
 }
 
 .command-card p {
   max-width: 680px;
   color: var(--muted);
   font-size: 1.03rem;
+  line-height: 1.6;
 }
 
 .prompt-card {
@@ -354,6 +422,7 @@ p {
   display: block;
   margin-bottom: 8px;
   font-weight: 900;
+  color: var(--ink);
 }
 
 .prompt-card textarea {
@@ -375,17 +444,22 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  background: var(--solid);
 }
 
 .tool-tab {
   color: var(--muted);
   background: var(--solid);
   border-color: var(--line);
+  text-align: center;
+  flex: 1;
+  min-width: 80px;
 }
 
 .tool-tab.active {
   color: white;
   background: #111113;
+  border-color: #111113;
 }
 
 .editor-grid {
@@ -414,6 +488,7 @@ p {
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1px solid var(--line);
+  align-items: start;
 }
 
 .editor-header h2 {
@@ -470,6 +545,7 @@ p {
   background: var(--solid);
   font-size: 0.86rem;
   font-weight: 900;
+  color: var(--muted);
 }
 
 .inspector-card {
@@ -477,6 +553,12 @@ p {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.72);
+}
+
+.inspector-card strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ink);
 }
 
 .inspector-card p {
@@ -512,6 +594,7 @@ p {
 .scene-card strong {
   display: block;
   margin-bottom: 9px;
+  color: var(--ink);
 }
 
 .artifact-card p,
@@ -522,11 +605,22 @@ p {
   color: var(--muted);
 }
 
+.artifact-card ul,
+.artifact-card ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.artifact-card li {
+  margin-bottom: 4px;
+}
+
 .editor-textarea {
   min-height: 440px;
   padding: 14px;
   resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: "Monaco", "Courier New", monospace;
+  font-size: 0.9rem;
   line-height: 1.55;
 }
 
@@ -561,11 +655,13 @@ p {
 .timeline span {
   padding: 10px;
   display: flex;
-  align-items: end;
+  align-items: center;
+  justify-content: center;
   border-radius: 10px;
   color: white;
   background: var(--red);
   font-weight: 900;
+  font-size: 0.85rem;
 }
 
 .timeline span:nth-child(2) { background: var(--blue); }
@@ -583,7 +679,8 @@ p {
   min-height: 480px;
   padding: 14px;
   resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: "Monaco", "Courier New", monospace;
+  font-size: 0.9rem;
 }
 
 .preview-frame {
@@ -612,6 +709,8 @@ p {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.72);
+  overflow-y: auto;
+  max-height: 600px;
 }
 
 .template-btn,
@@ -623,11 +722,13 @@ p {
   background: var(--solid);
   border-color: var(--line);
   text-align: left;
+  justify-content: flex-start;
 }
 
 .template-btn.active {
   color: white;
   background: #111113;
+  border-color: #111113;
 }
 
 .smart-btn {
@@ -645,8 +746,16 @@ p {
 
 .brand-swatches button {
   aspect-ratio: 1;
-  border: 1px solid var(--line);
+  border: 2px solid transparent;
   border-radius: 10px;
+  transition: transform var(--transition), border-color var(--transition);
+  cursor: pointer;
+}
+
+.brand-swatches button:hover,
+.brand-swatches button:focus-visible {
+  transform: scale(1.05);
+  border-color: #111113;
 }
 
 .design-prompt {
@@ -654,6 +763,7 @@ p {
   padding: 10px;
   resize: vertical;
   font-size: 0.88rem;
+  margin-top: 10px;
 }
 
 .design-toolbar {
@@ -681,6 +791,13 @@ p {
   background: var(--solid);
   font-size: 0.86rem;
   font-weight: 900;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.design-toolbar button:hover,
+.design-toolbar label:hover {
+  background: var(--soft);
 }
 
 .design-toolbar input[type="text"] {
@@ -693,6 +810,14 @@ p {
 
 .design-toolbar input[type="number"] {
   width: 70px;
+}
+
+.design-toolbar input[type="color"] {
+  width: 50px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
 }
 
 .design-upload input {
@@ -738,6 +863,7 @@ p {
   font-size: 0.86rem;
 }
 
+/* Responsive Design */
 @media (max-width: 1180px) {
   .workspace,
   .command-card,
@@ -750,6 +876,11 @@ p {
 
   .brain-panel {
     max-height: none;
+    order: 2;
+  }
+
+  .studio-main {
+    order: 1;
   }
 
   .topnav {
@@ -765,10 +896,15 @@ p {
 
   .topbar {
     top: 8px;
+    padding: 0 8px;
   }
 
   .top-actions .ghost-btn {
     display: none;
+  }
+
+  .top-actions .primary-btn {
+    min-width: 60px;
   }
 
   .command-card h1 {
@@ -785,9 +921,74 @@ p {
     display: grid;
   }
 
+  .design-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .design-left,
+  .design-right {
+    display: none;
+  }
+
+  .design-center {
+    grid-column: 1;
+  }
+
   .design-toolbar button,
   .design-toolbar label,
   .design-toolbar input[type="text"] {
     width: 100%;
+    min-width: auto;
+  }
+
+  .editor-textarea,
+  .code-editor {
+    min-height: 240px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .brand {
+    width: 100%;
+    order: 1;
+  }
+
+  .topnav {
+    order: 3;
+  }
+
+  .top-actions {
+    order: 2;
+  }
+
+  .command-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .prompt-actions {
+    flex-direction: column;
+  }
+
+  .primary-btn,
+  .secondary-btn,
+  .ghost-btn {
+    width: 100%;
+  }
+
+  .tool-strip {
+    grid-auto-flow: dense;
+  }
+
+  .tool-tab {
+    flex: 0 1 calc(50% - 4px);
+    min-width: unset;
   }
 }
