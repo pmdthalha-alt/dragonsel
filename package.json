@@ -1,7 +1,7 @@
 {
   "name": "dragonsel",
   "version": "1.0.0",
-  "description": "Dragonsel is an all-in-one AI creation workspace for research, writing, design, video, websites, apps, games, and export.",
+  "description": "Dragonsel is an all-in-one AI creation workspace for research, writing, design, video, websites, apps, and export.",
   "main": "ai.js",
   "scripts": {
     "setup": "npm install && npm run setup:backend && npm run setup:frontend",
