@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dragonsel Studio</title>
   <meta name="description" content="Dragonsel is one AI workspace for research, slides, design, video, websites, apps, and exports.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111113'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='34' font-weight='800' fill='white'%3ED%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="app.css">
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 </head>
@@ -63,16 +64,31 @@
         <section class="command-card">
           <div>
             <span class="eyebrow">Dragonsel Studio</span>
-            <h1>Pick what to make. Describe it. Generate the first version.</h1>
-            <p>Research, slides, design, video, websites, apps, and exports stay connected through one project brain.</p>
+            <h1>Chat with Dragonsel. Your workspace builds itself.</h1>
+            <p>Describe a video, podcast, website, deck, design, app, or research task. Dragonsel opens the right workspace, creates the first draft, and keeps everything connected.</p>
           </div>
-          <div class="prompt-card">
-            <label for="promptInput">What should Dragonsel create?</label>
+          <div class="assistant-card">
+            <div class="assistant-head">
+              <div>
+                <span class="eyebrow">AI Assistant</span>
+                <strong>What are we making?</strong>
+              </div>
+              <span class="free-pill">Free</span>
+            </div>
+            <div class="chat-thread" id="chatMessages" aria-live="polite"></div>
+            <label for="promptInput">Describe the thing you want Dragonsel to build</label>
             <textarea id="promptInput">Create a launch system for an AI workspace that combines research notes, slides, brand design, promo video, landing page, app dashboard, and export package.</textarea>
             <div class="prompt-actions">
-              <button class="primary-btn" id="generateBtn" type="button">Generate</button>
-              <button class="secondary-btn" id="generateAllBtn" type="button">Generate All</button>
+              <button class="primary-btn" id="generateBtn" type="button">Send and Build</button>
+              <button class="secondary-btn" id="generateSelectedBtn" type="button">Generate Selected</button>
+              <button class="secondary-btn" id="generateAllBtn" type="button">Build All</button>
               <button class="ghost-btn" id="clearBtn" type="button">Clear</button>
+            </div>
+            <div class="quick-prompts" aria-label="Example prompts">
+              <button type="button" data-example="Make a 30 second product launch video with scenes, captions, transitions, and export notes.">Video</button>
+              <button type="button" data-example="Create a podcast overview about my project with two hosts, intro, segments, and final recap.">Podcast</button>
+              <button type="button" data-example="Build a full website for my brand with hero, pages, sections, forms, and launch copy.">Website</button>
+              <button type="button" data-example="Create slides for a clean pitch deck with speaker notes and a strong story.">Slides</button>
             </div>
           </div>
         </section>
@@ -123,6 +139,6 @@
     </main>
   </div>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

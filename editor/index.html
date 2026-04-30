@@ -1,1 +1,59 @@
-"/* Dragonsel Editor Engine - Apple Quality */"  
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="0; url=/">
+    <title>Opening Dragonsel Studio</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f6f5f1;
+        color: #181817;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+      }
+
+      main {
+        width: min(420px, calc(100vw - 40px));
+        padding: 28px;
+        border: 1px solid rgba(24, 24, 23, 0.1);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 20px 60px rgba(24, 24, 23, 0.12);
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: 24px;
+      }
+
+      p {
+        margin: 0 0 18px;
+        color: #62605a;
+        line-height: 1.5;
+      }
+
+      a {
+        color: #181817;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Opening Dragonsel Studio</h1>
+      <p>The editor now lives inside the main smart workspace.</p>
+      <a href="/">Go to Dragonsel Studio</a>
+    </main>
+    <script>
+      window.location.replace("/");
+    </script>
+  </body>
+</html>

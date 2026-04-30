@@ -1,5 +1,18 @@
 # Dragonsel Quick Start Guide
 
+## Current Studio App
+
+For the working all-in-one Dragonsel Studio interface, run this from the project root:
+
+```bash
+npm install
+npm run dev
+```
+
+Then open `http://127.0.0.1:5173`.
+
+This loads the root `index.html`, `app.css`, and `app.js`. The old `/editor/` folder now redirects to the main Studio so it does not show a broken page.
+
 ## Prerequisites
 
 - Node.js 18+
@@ -7,6 +20,8 @@
 - Docker (optional, for containerized setup)
 
 ## Setup
+
+The backend and React frontend below are the larger full-stack implementation. For the current free local Studio build, use the root command above.
 
 ### 1. Backend Setup
 

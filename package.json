@@ -2,8 +2,14 @@
   "name": "dragonsel",
   "version": "1.0.0",
   "description": "Dragonsel is an all-in-one AI creation workspace for research, writing, design, video, websites, apps, games, and export.",
-  "main": "ai.js",
+  "main": "app.js",
   "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "start": "vite --host 127.0.0.1 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "check": "node --check app.js && node --check smoke-test.mjs",
+    "smoke": "node smoke-test.mjs http://127.0.0.1:5173",
     "setup": "npm install && npm run setup:backend && npm run setup:frontend",
     "setup:backend": "cd backend && npm install",
     "setup:frontend": "cd frontend && npm install",
@@ -11,7 +17,7 @@
     "dev:frontend": "cd frontend && npm run dev",
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run check"
   },
   "repository": {
     "type": "git",

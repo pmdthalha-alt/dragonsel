@@ -59,6 +59,7 @@ const toolMeta = {
 document.addEventListener("DOMContentLoaded", () => {
   bindUI();
   hydrateProject();
+  renderChat();
   selectTool("research", false);
 });
 
@@ -71,7 +72,8 @@ function bindUI() {
     tab.addEventListener("click", () => selectTool(tab.dataset.tool));
   });
 
-  document.getElementById("generateBtn")?.addEventListener("click", generateActiveTool);
+  document.getElementById("generateBtn")?.addEventListener("click", handleAssistantSend);
+  document.getElementById("generateSelectedBtn")?.addEventListener("click", generateActiveTool);
   document.getElementById("generateAllBtn")?.addEventListener("click", generateAllTools);
   document.getElementById("clearBtn")?.addEventListener("click", () => {
     document.getElementById("promptInput").value = "";
@@ -84,6 +86,20 @@ function bindUI() {
 
   ["projectName", "audienceInput", "goalInput", "styleInput"].forEach((id) => {
     document.getElementById(id)?.addEventListener("input", debounce(saveProjectFromUI, 350));
+  });
+
+  document.getElementById("promptInput")?.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      handleAssistantSend();
+    }
+  });
+
+  document.querySelectorAll(".quick-prompts button").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.getElementById("promptInput").value = button.dataset.example || "";
+      handleAssistantSend();
+    });
   });
 }
 
@@ -110,6 +126,12 @@ function loadProject() {
       goal: "Create everything in one place",
       style: "clean, premium, fast"
     },
+    chat: [
+      {
+        role: "assistant",
+        text: "Tell me what you want to make. I will open the right workspace and build the first version."
+      }
+    ],
     sources: [],
     assets: []
   };
@@ -129,13 +151,48 @@ function newProject() {
   state.project = {
     name: "Untitled Project",
     context: { audience: "", goal: "", style: "" },
+    chat: [
+      {
+        role: "assistant",
+        text: "New project ready. Describe what you want to create."
+      }
+    ],
     sources: [],
     assets: []
   };
   state.currentPayload = null;
   hydrateProject();
   document.getElementById("editorBody").innerHTML = `<div class="empty-state"><strong>New project ready.</strong><p>Choose a tool and generate the first artifact.</p></div>`;
+  renderChat();
   setSaveStatus("New");
+}
+
+function renderChat() {
+  const chat = document.getElementById("chatMessages");
+  if (!chat) return;
+  if (!Array.isArray(state.project.chat) || state.project.chat.length === 0) {
+    state.project.chat = [
+      {
+        role: "assistant",
+        text: "Tell me what you want to make. I will open the right workspace and build the first version."
+      }
+    ];
+  }
+  chat.innerHTML = state.project.chat.slice(-6).map((message) => `
+    <div class="chat-message ${message.role}">
+      <span>${message.role === "user" ? "You" : "Dragonsel"}</span>
+      <p>${escapeHTML(message.text)}</p>
+    </div>
+  `).join("");
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addChat(role, text) {
+  if (!Array.isArray(state.project.chat)) state.project.chat = [];
+  state.project.chat.push({ role, text, createdAt: Date.now() });
+  if (state.project.chat.length > 40) state.project.chat.shift();
+  renderChat();
+  saveProjectFromUI();
 }
 
 function setSaveStatus(text) {
@@ -210,6 +267,52 @@ function generateActiveTool() {
   saveAsset(state.activeTool, payload.title, payload);
 }
 
+function handleAssistantSend() {
+  const input = document.getElementById("promptInput");
+  const prompt = input.value.trim();
+  if (!prompt) return;
+
+  const intent = detectIntent(prompt);
+  state.project.name = titleFromPrompt(prompt);
+  document.getElementById("projectName").value = state.project.name;
+  state.project.context.goal = prompt.slice(0, 120);
+  document.getElementById("goalInput").value = state.project.context.goal;
+  addChat("user", prompt);
+
+  if (intent === "all") {
+    generateAllTools();
+    addChat("assistant", "I opened a complete Dragonsel workspace and generated connected drafts for every module.");
+    document.getElementById("toolStatus").textContent = "Workspace built";
+    return;
+  }
+
+  selectTool(intent, false);
+  const payload = makePayload(intent);
+  renderTool(intent, payload);
+  saveAsset(intent, payload.title, payload);
+  addChat("assistant", `I opened the ${toolMeta[intent].label.toLowerCase()} and generated the first editable draft.`);
+  document.getElementById("editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function detectIntent(text) {
+  const value = text.toLowerCase();
+  const has = (words) => words.some((word) => value.includes(word));
+
+  const buckets = {
+    video: ["video", "reel", "short", "caption", "scene", "timeline", "transition", "clip", "trailer"],
+    audio: ["podcast", "audio", "voice", "host", "episode", "voiceover", "listen"],
+    website: ["website", "site", "landing page", "web page", "homepage", "portfolio"],
+    app: ["app", "dashboard", "portal", "saas", "tool", "form", "database"],
+    slides: ["slide", "slides", "deck", "presentation", "pitch"],
+    design: ["design", "brand", "logo", "poster", "thumbnail", "social post", "graphic"],
+    research: ["research", "notes", "summarize", "summary", "study", "source", "question", "document"]
+  };
+
+  const hits = Object.entries(buckets).filter(([, words]) => has(words)).map(([tool]) => tool);
+  if (hits.length > 1 || has(["everything", "all-in-one", "all in one", "launch system", "complete package", "full project"])) return "all";
+  return hits[0] || state.activeTool || "research";
+}
+
 function generateAllTools() {
   ["research", "audio", "slides", "design", "video", "website", "app", "export"].forEach((tool) => {
     const payload = makePayload(tool);
@@ -264,6 +367,10 @@ function makePayload(tool) {
   if (tool === "audio") {
     return {
       ...common,
+      voices: [
+        { name: "Host A", role: "curious guide", tone: "clear and warm" },
+        { name: "Host B", role: "practical analyst", tone: "direct and thoughtful" }
+      ],
       sections: [
         { host: "A", text: `Today we are unpacking ${title}, why it matters, and what it helps users create.` },
         { host: "B", text: "The big idea is that research, design, video, websites, apps, and exports share one workspace." },
@@ -298,10 +405,10 @@ function makePayload(tool) {
       ...common,
       duration: 30,
       scenes: [
-        ["0-3s", "Show the problem with bold caption text."],
-        ["3-9s", `Reveal ${title} as the solution.`],
-        ["9-20s", "Show research, design, video, website, and app outputs."],
-        ["20-30s", "End with export package and start free CTA."]
+        ["0-3s", "Show the problem with bold caption text.", "quick zoom"],
+        ["3-9s", `Reveal ${title} as the solution.`, "smooth slide"],
+        ["9-20s", "Show research, design, video, website, and app outputs.", "match cut"],
+        ["20-30s", "End with export package and start free CTA.", "fade out"]
       ],
       captions: ["One idea", "Every tool", "One workspace", "Export together"]
     };
@@ -309,6 +416,11 @@ function makePayload(tool) {
   if (tool === "website") {
     return {
       ...common,
+      brand: {
+        colors: ["#111113", "#b4122d", "#0a84ff"],
+        tone: context.style || "clean, premium, fast"
+      },
+      pages: ["Home", "Product", "Templates", "Workspace", "Export"],
       html: websiteHTML(title, prompt)
     };
   }
@@ -351,6 +463,16 @@ function renderResearch(payload) {
 
 function renderAudio(payload) {
   document.getElementById("editorBody").innerHTML = `
+    <div class="artifact-grid">
+      <article class="artifact-card">
+        <strong>Voice Setup</strong>
+        <ul>${payload.voices.map((voice) => `<li contenteditable="true">${escapeHTML(voice.name)} - ${escapeHTML(voice.role)} - ${escapeHTML(voice.tone)}</li>`).join("")}</ul>
+      </article>
+      <article class="artifact-card">
+        <strong>Finished Podcast Flow</strong>
+        <p contenteditable="true">Intro, topic framing, guided explanation, practical examples, recap, and final next step.</p>
+      </article>
+    </div>
     <textarea class="editor-textarea">${payload.sections.map((section) => `Host ${section.host}: ${section.text}`).join("\n\n")}</textarea>
   `;
 }
@@ -379,6 +501,7 @@ function renderVideo(payload) {
           <article class="scene-card">
             <strong>Scene ${index + 1}</strong>
             <p contenteditable="true">${escapeHTML(scene[1])}</p>
+            <p contenteditable="true">Transition: ${escapeHTML(scene[2])}</p>
           </article>
         `).join("")}
       </div>
@@ -392,6 +515,17 @@ function renderVideo(payload) {
 
 function renderWebsite(payload) {
   document.getElementById("editorBody").innerHTML = `
+    <div class="artifact-grid">
+      <article class="artifact-card">
+        <strong>Brand</strong>
+        <p contenteditable="true">Colors: ${payload.brand.colors.join(", ")}</p>
+        <p contenteditable="true">Tone: ${escapeHTML(payload.brand.tone)}</p>
+      </article>
+      <article class="artifact-card">
+        <strong>Pages</strong>
+        <ul>${payload.pages.map((page) => `<li contenteditable="true">${escapeHTML(page)}</li>`).join("")}</ul>
+      </article>
+    </div>
     <div class="website-editor">
       <textarea class="code-editor" id="websiteCode">${escapeHTML(payload.html)}</textarea>
       <iframe class="preview-frame" id="websitePreview" title="Website preview"></iframe>

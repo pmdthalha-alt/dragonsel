@@ -2,6 +2,19 @@
 
 Dragonsel is an all-in-one AI creation workspace for research, writing, design, video, websites, apps, games, and export.
 
+## Run The Current App
+
+The active Dragonsel Studio app is the root `index.html` powered by `app.css` and `app.js`.
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`.
+
+The `/editor/` path now redirects back to the main Studio because the editor is built into the smart workspace. Legacy copies and duplicate folders live in `_archive/` and are not loaded by the website.
+
 ## Current Strategy
 
 Dragonsel is completely free during early access.
