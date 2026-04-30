@@ -1,32 +1,25 @@
-# Dragonsel AI Creator Implementation Plan
+# Dragonsel Production Roadmap
 
-## Overview
-Transform static landing page into functional AI workspace copying core flows from:
-- **NotebookLM**: Pick 'slides' + describe → AI study guide, slides, audio overview.
-- **Canva**: Pick 'design' + describe → editable canvas/SVG assets.
-- **CapCut**: Pick 'video' + describe → timeline, clips, captions.
-- **Base44**: Pick 'website/app' + describe → full editable HTML/sections.
+## Phase 1: Core Infrastructure
+- [ ] Smart Task Router - analyzes prompts and routes to multiple engines
+- [ ] Cross-Tool Collaboration System - engines trigger each other
+- [ ] Backend unified API with proper auth
+- [ ] Database schema for projects, assets, sources
 
-Use existing 'Creation Suite' as main interface. Client-side AI (Groq/OpenAI) for generation.
+## Phase 2: Engine Systems
+- [ ] Research Engine - like NotebookLM: file understanding, summaries, knowledge
+- [ ] Video Engine - like CapCut: timelines, captions, scenes, media
+- [ ] Design Engine - like Canva: templates, drag-drop, branding
+- [ ] App Engine - like Base44: forms, workflows, builders
 
-Status: [ ] In Progress
+## Phase 3: Integration
+- [ ] When user gives task, router activates all relevant engines
+- [ ] Shared project brain passes context between engines
+- [ ] One workspace showing all outputs connected
+- [ ] Export package from all systems
 
-## Step 1: Setup AI Integration [x] - ai.js created
-
-## Step 2: Make Suite Functional [x] - AI integrated to Creation Suite, slides/website generate + preview/download
-
-## Step 3: Add Editability [ ]
-
-## Step 3: Add Editability [ ]
-- Embed previews (iframe for slides/site, canvas for design/video).
-- LocalStorage projects.
-
-## Step 4: Connected Brain [ ]
-- Share context across generations.
-
-## Step 5: Polish + Demo [ ]
-- Downloads, themes.
-- `npm init -y && npm i -D vite` for dev server.
-
-Updated on completion of each step.
-
+## Phase 4: Production Polish
+- [ ] Error handling and loading states
+- [ ] Real-time updates with WebSockets
+- [ ] File upload and storage
+- [ ] Production deployment ready

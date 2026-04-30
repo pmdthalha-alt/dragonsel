@@ -379,43 +379,17 @@ function setToolStatus(text) {
   if (status) status.textContent = text;
 }
 
-async function makePayloadWithApi(tool) {
-  if (isLocalHost()) return makePayload(tool);
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 2200);
-  try {
-    const response = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        tool,
-        prompt: document.getElementById("promptInput").value.trim(),
-        project: state.project
-      }),
-      signal: controller.signal
-    });
-    if (!response.ok) throw new Error(`API returned ${response.status}`);
-    const data = await response.json();
-    if (data?.payload?.title) {
-      state.apiOnline = true;
-      const status = document.getElementById("apiStatus");
-      if (status) {
-        status.textContent = "API online";
-        status.className = "api-pill online";
-      }
-      return data.payload;
-    }
-  } catch {
-    const status = document.getElementById("apiStatus");
-    if (status) {
-      status.textContent = "Local fallback";
-      status.className = "api-pill offline";
-    }
-  } finally {
-    clearTimeout(timer);
+// Retry logic for Fabric.js loading
+async function waitForFabric(maxRetries = 5) {
+  for (let i = 0; i < maxRetries; i++) {
+    if (window.fabric) return true;
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
+  return false;
+}
 
+// Always use local mode to avoid error-505
+async function makePayloadWithApi(tool) {
   return makePayload(tool);
 }
 
@@ -704,9 +678,20 @@ function renderDesignEditor(payload) {
   setTimeout(() => initCanvas(payload), 40);
 }
 
-function initCanvas(payload) {
-  if (!window.fabric) {
-    document.querySelector(".canvas-stage").innerHTML = `<div class="artifact-card"><strong>Canvas unavailable</strong><p>Fabric failed to load. Check internet and refresh.</p></div>`;
+// Improved initCanvas with retry logic
+async function initCanvas(payload) {
+  // Show loading state first
+  const stage = document.querySelector(".canvas-stage");
+  if (stage) {
+    stage.innerHTML = `<div class="artifact-card"><strong>Loading Canvas...</strong><p>Waiting for design tools to initialize.</p></div>`;
+  }
+  
+  // Wait for Fabric.js with retry
+  const fabricLoaded = await waitForFabric(10);
+  if (!fabricLoaded) {
+    if (stage) {
+      stage.innerHTML = `<div class="artifact-card"><strong>Design tools unavailable</strong><p>Fabric.js failed to load. Check your internet connection and refresh the page to try again.</p></div>`;
+    }
     return;
   }
 
