@@ -2,7 +2,8 @@ const state = {
   activeTool: "research",
   project: loadProject(),
   currentPayload: null,
-  canvas: null
+  canvas: null,
+  apiOnline: false
 };
 
 const toolMeta = {
@@ -61,6 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
   hydrateProject();
   renderChat();
   selectTool("research", false);
+  checkApiHealth();
 });
 
 window.__dragonselDebug = {
@@ -261,13 +263,14 @@ function renderPipeline(steps) {
   document.getElementById("pipelineList").innerHTML = steps.map((step) => `<span>${escapeHTML(step)}</span>`).join("");
 }
 
-function generateActiveTool() {
-  const payload = makePayload(state.activeTool);
+async function generateActiveTool() {
+  setToolStatus("Generating");
+  const payload = await makePayloadWithApi(state.activeTool);
   renderTool(state.activeTool, payload);
   saveAsset(state.activeTool, payload.title, payload);
 }
 
-function handleAssistantSend() {
+async function handleAssistantSend() {
   const input = document.getElementById("promptInput");
   const prompt = input.value.trim();
   if (!prompt) return;
@@ -287,7 +290,8 @@ function handleAssistantSend() {
   }
 
   selectTool(intent, false);
-  const payload = makePayload(intent);
+  setToolStatus("Generating");
+  const payload = await makePayloadWithApi(intent);
   renderTool(intent, payload);
   saveAsset(intent, payload.title, payload);
   addChat("assistant", `I opened the ${toolMeta[intent].label.toLowerCase()} and generated the first editable draft.`);
@@ -328,7 +332,7 @@ function renderTool(tool, payload) {
   const meta = toolMeta[tool];
   document.getElementById("toolLabel").textContent = meta.label;
   document.getElementById("toolTitle").textContent = meta.title;
-  document.getElementById("toolStatus").textContent = meta.status;
+  setToolStatus(meta.status);
   renderPipeline(meta.pipeline);
 
   if (tool === "research") return renderResearch(payload);
@@ -339,6 +343,80 @@ function renderTool(tool, payload) {
   if (tool === "website") return renderWebsite(payload);
   if (tool === "app") return renderApp(payload);
   if (tool === "export") return renderExport(payload);
+}
+
+async function checkApiHealth() {
+  const status = document.getElementById("apiStatus");
+  if (!status) return;
+
+  if (isLocalHost()) {
+    state.apiOnline = false;
+    status.textContent = "Local mode";
+    status.className = "api-pill local";
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/health", { headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    const data = await response.json();
+    state.apiOnline = Boolean(data.ok);
+    status.textContent = state.apiOnline ? "API online" : "API local";
+    status.className = state.apiOnline ? "api-pill online" : "api-pill local";
+  } catch {
+    state.apiOnline = false;
+    status.textContent = "Local fallback";
+    status.className = "api-pill offline";
+  }
+}
+
+function isLocalHost() {
+  return ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
+}
+
+function setToolStatus(text) {
+  const status = document.getElementById("toolStatus");
+  if (status) status.textContent = text;
+}
+
+async function makePayloadWithApi(tool) {
+  if (isLocalHost()) return makePayload(tool);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2200);
+  try {
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        tool,
+        prompt: document.getElementById("promptInput").value.trim(),
+        project: state.project
+      }),
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    const data = await response.json();
+    if (data?.payload?.title) {
+      state.apiOnline = true;
+      const status = document.getElementById("apiStatus");
+      if (status) {
+        status.textContent = "API online";
+        status.className = "api-pill online";
+      }
+      return data.payload;
+    }
+  } catch {
+    const status = document.getElementById("apiStatus");
+    if (status) {
+      status.textContent = "Local fallback";
+      status.className = "api-pill offline";
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+
+  return makePayload(tool);
 }
 
 function makePayload(tool) {

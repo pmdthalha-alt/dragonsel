@@ -116,6 +116,36 @@ p {
   gap: 8px;
 }
 
+.api-pill {
+  min-height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.76);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.api-pill.online {
+  color: var(--green);
+  border-color: rgba(31, 143, 99, 0.28);
+  background: rgba(31, 143, 99, 0.08);
+}
+
+.api-pill.local {
+  color: var(--muted);
+}
+
+.api-pill.offline {
+  color: var(--amber);
+  border-color: rgba(196, 123, 31, 0.26);
+  background: rgba(196, 123, 31, 0.08);
+}
+
 .topnav a {
   padding: 8px 10px;
   border-radius: 8px;
@@ -910,6 +940,10 @@ p {
   }
 
   .top-actions .ghost-btn {
+    display: none;
+  }
+
+  .api-pill {
     display: none;
   }
 
