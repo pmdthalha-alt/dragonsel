@@ -3,8 +3,13 @@ const state = {
   project: loadProject(),
   currentPayload: null,
   canvas: null,
-  apiOnline: false
+  apiOnline: false,
+  authToken: localStorage.getItem("dragonsel_auth_token") || null,
+  user: JSON.parse(localStorage.getItem("dragonsel_user") || "null")
 };
+
+const API_URL = window.location.hostname === "localhost" ? "http://localhost:5000/api" : "/api";
+
 
 const toolMeta = {
   research: {
@@ -103,7 +108,14 @@ function bindUI() {
       handleAssistantSend();
     });
   });
+
+  document.getElementById("authBtn")?.addEventListener("click", openAuthModal);
+  document.getElementById("authClose")?.addEventListener("click", closeAuthModal);
+  document.getElementById("authSubmit")?.addEventListener("click", handleAuthSubmit);
+  document.getElementById("authToggle")?.addEventListener("click", toggleAuthMode);
+  document.getElementById("authOverlay")?.addEventListener("click", closeAuthModal);
 }
+
 
 function hydrateProject() {
   document.getElementById("projectName").value = state.project.name;
@@ -349,26 +361,23 @@ async function checkApiHealth() {
   const status = document.getElementById("apiStatus");
   if (!status) return;
 
-  if (isLocalHost()) {
+  try {
+    const baseUrl = API_URL.replace('/api', '');
+    const response = await fetch(`${baseUrl}/api/health`, { headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    const data = await response.json();
+    state.apiOnline = true;
+    status.textContent = "API online";
+    status.className = "api-pill online";
+    updateAuthUI();
+  } catch {
     state.apiOnline = false;
     status.textContent = "Local mode";
     status.className = "api-pill local";
-    return;
-  }
-
-  try {
-    const response = await fetch("/api/health", { headers: { Accept: "application/json" } });
-    if (!response.ok) throw new Error(`API returned ${response.status}`);
-    const data = await response.json();
-    state.apiOnline = Boolean(data.ok);
-    status.textContent = state.apiOnline ? "API online" : "API local";
-    status.className = state.apiOnline ? "api-pill online" : "api-pill local";
-  } catch {
-    state.apiOnline = false;
-    status.textContent = "Local fallback";
-    status.className = "api-pill offline";
+    updateAuthUI();
   }
 }
+
 
 function isLocalHost() {
   return ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
@@ -388,10 +397,30 @@ async function waitForFabric(maxRetries = 5) {
   return false;
 }
 
-// Always use local mode to avoid error-505
 async function makePayloadWithApi(tool) {
+  if (!state.apiOnline || !state.authToken) {
+    return makePayload(tool);
+  }
+  try {
+    const prompt = document.getElementById("promptInput").value.trim() || "Create a Dragonsel project";
+    const result = await apiFetch("/ai/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        tool,
+        prompt,
+        context: state.project.context,
+        sources: state.project.sources
+      })
+    });
+    if (result.success && result.data) {
+      return { ...result.data, createdAt: new Date().toISOString() };
+    }
+  } catch (err) {
+    console.warn("AI API failed, using local fallback:", err.message);
+  }
   return makePayload(tool);
 }
+
 
 function makePayload(tool) {
   const prompt = document.getElementById("promptInput").value.trim() || "Create a Dragonsel project";
@@ -1005,11 +1034,12 @@ function safeFileName(value) {
 function escapeHTML(value) {
   return String(value)
     .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """)
     .replace(/'/g, "&#039;");
 }
+
 
 function escapeAttr(value) {
   return escapeHTML(value).replace(/\n/g, "&#10;");
@@ -1021,4 +1051,143 @@ function debounce(fn, delay) {
     clearTimeout(timer);
     timer = setTimeout(() => fn(...args), delay);
   };
+}
+
+// ===== API LAYER =====
+
+async function apiFetch(path, opts) {
+  opts = opts || {};
+  const token = state.authToken;
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = "Bearer " + token;
+  if (opts.headers) Object.assign(headers, opts.headers);
+  const res = await fetch(API_URL + path, {
+    method: opts.method || "GET",
+    headers: headers,
+    body: opts.body
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Request failed");
+  }
+  return res.json();
+}
+
+async function generateWithAI(tool, prompt, context) {
+  try {
+    return await apiFetch("/ai/generate", {
+      method: "POST",
+      body: JSON.stringify({ tool, prompt, context })
+    });
+  } catch (e) {
+    console.warn("AI fallback:", e.message);
+    return null;
+  }
+}
+
+async function detectIntentWithAI(prompt) {
+  try {
+    const data = await apiFetch("/ai/intent", {
+      method: "POST",
+      body: JSON.stringify({ prompt })
+    });
+    return data.intent?.intent || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function handleAuthSubmit() {
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value.trim();
+  const name = document.getElementById("authName")?.value.trim() || "";
+  const isSignup = document.getElementById("authMode").dataset.mode === "signup";
+
+  if (!email || !password) {
+    showToast("Email and password required", "error");
+    return;
+  }
+
+  const endpoint = isSignup ? "/auth/signup" : "/auth/login";
+  const body = isSignup ? JSON.stringify({ email, password, name }) : JSON.stringify({ email, password });
+
+  try {
+    const baseUrl = API_URL.replace('/api', '');
+    const res = await fetch(`${baseUrl}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Auth failed");
+
+    state.authToken = data.token;
+    state.user = { id: data.userId, email: data.email, name: data.name };
+    localStorage.setItem("dragonsel_auth_token", data.token);
+    localStorage.setItem("dragonsel_user", JSON.stringify(state.user));
+    updateAuthUI();
+    closeAuthModal();
+    showToast(isSignup ? "Account created!" : "Welcome back!", "success");
+    checkApiHealth();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+function logout() {
+  state.authToken = null;
+  state.user = null;
+  localStorage.removeItem("dragonsel_auth_token");
+  localStorage.removeItem("dragonsel_user");
+  updateAuthUI();
+  showToast("Logged out", "info");
+}
+
+function updateAuthUI() {
+  const btn = document.getElementById("authBtn");
+  if (!btn) return;
+  if (state.user) {
+    btn.textContent = state.user.name || state.user.email;
+    btn.className = "ghost-btn auth-logged-in";
+  } else {
+    btn.textContent = "Account";
+    btn.className = "ghost-btn";
+  }
+}
+
+function openAuthModal() {
+  if (state.user) {
+    if (confirm("Log out of " + (state.user.email || "your account") + "?")) {
+      logout();
+    }
+    return;
+  }
+  document.getElementById("authModal").classList.add("show");
+  document.getElementById("authOverlay").classList.add("show");
+}
+
+function closeAuthModal() {
+  document.getElementById("authModal").classList.remove("show");
+  document.getElementById("authOverlay").classList.remove("show");
+}
+
+function toggleAuthMode() {
+  const modeEl = document.getElementById("authMode");
+  const nameField = document.getElementById("authNameField");
+  const isSignup = modeEl.dataset.mode === "signup";
+  modeEl.dataset.mode = isSignup ? "login" : "signup";
+  modeEl.textContent = isSignup ? "Log in instead" : "Create account";
+  document.getElementById("authSubmit").textContent = isSignup ? "Log In" : "Sign Up";
+  document.getElementById("authTitle").textContent = isSignup ? "Log In" : "Sign Up";
+  if (nameField) nameField.style.display = isSignup ? "none" : "block";
+}
+
+function showToast(msg, type) {
+  type = type || "info";
+  const t = document.createElement("div");
+  t.className = "toast toast-" + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.classList.add("show"); }, 10);
+  setTimeout(function() { t.classList.remove("show"); setTimeout(function() { t.remove(); }, 300); }, 3000);
 }

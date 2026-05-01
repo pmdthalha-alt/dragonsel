@@ -1,4 +1,4 @@
-wwwwwwwwwwww# Dragonsel Rebuild Plan - Apple-Level Creative AI Platform
+# Dragonsel Rebuild Plan - Apple-Level Creative AI Platform
 
 ## VISION
 Recreate and improve the core working systems of Canva, CapCut, NotebookLM, and Base44 in one connected platform with Apple-level design.

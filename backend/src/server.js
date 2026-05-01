@@ -16,6 +16,8 @@ const videoRoutes = require('./routes/modules/video');
 const webRoutes = require('./routes/modules/web');
 const assetRoutes = require('./routes/assets');
 const exportRoutes = require('./routes/export');
+const aiRoutes = require('./routes/ai');
+
 
 // Middleware
 const authMiddleware = require('./middleware/auth');
@@ -63,8 +65,10 @@ app.use('/api/design', authMiddleware, designRoutes);
 app.use('/api/video', authMiddleware, videoRoutes);
 app.use('/api/web', authMiddleware, webRoutes);
 app.use('/api/export', authMiddleware, exportRoutes);
+app.use('/api/ai', authMiddleware, aiRoutes);
 
 // WebSocket events
+
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 

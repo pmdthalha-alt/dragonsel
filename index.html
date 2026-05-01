@@ -23,6 +23,7 @@
       </nav>
       <div class="top-actions">
         <span class="api-pill" id="apiStatus">API ready</span>
+        <button class="ghost-btn" id="authBtn" type="button">Account</button>
         <button class="ghost-btn" id="newProjectBtn" type="button">New</button>
         <button class="primary-btn" id="saveProjectBtn" type="button">Save</button>
       </div>
@@ -140,6 +141,34 @@
     </main>
   </div>
 
+  <div class="auth-overlay" id="authOverlay"></div>
+  <div class="auth-modal" id="authModal">
+    <div class="auth-header">
+      <h3 id="authTitle">Sign Up</h3>
+      <button class="auth-close" id="authClose" type="button">&times;</button>
+    </div>
+    <div class="auth-body">
+      <div class="auth-field" id="authNameField">
+        <label for="authName">Name</label>
+        <input type="text" id="authName" placeholder="Your name">
+      </div>
+      <div class="auth-field">
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" placeholder="you@example.com">
+      </div>
+      <div class="auth-field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" placeholder="Min 6 characters">
+      </div>
+      <button class="primary-btn full" id="authSubmit" type="button">Sign Up</button>
+      <p class="auth-toggle">
+        <span>Already have an account?</span>
+        <button type="button" id="authMode" data-mode="signup">Log in instead</button>
+      </p>
+    </div>
+  </div>
+
   <script type="module" src="app.js"></script>
 </body>
+
 </html>
