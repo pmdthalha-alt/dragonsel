@@ -8,7 +8,8 @@ const state = {
   user: JSON.parse(localStorage.getItem("dragonsel_user") || "null")
 };
 
-const API_URL = window.location.hostname === "localhost" ? "http://localhost:5000/api" : "/api";
+const API_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || !window.location.hostname) ? "http://localhost:5000/api" : "/api";
+
 
 
 const toolMeta = {
@@ -112,7 +113,7 @@ function bindUI() {
   document.getElementById("authBtn")?.addEventListener("click", openAuthModal);
   document.getElementById("authClose")?.addEventListener("click", closeAuthModal);
   document.getElementById("authSubmit")?.addEventListener("click", handleAuthSubmit);
-  document.getElementById("authToggle")?.addEventListener("click", toggleAuthMode);
+  document.getElementById("authMode")?.addEventListener("click", toggleAuthMode);
   document.getElementById("authOverlay")?.addEventListener("click", closeAuthModal);
 }
 
@@ -287,7 +288,16 @@ async function handleAssistantSend() {
   const prompt = input.value.trim();
   if (!prompt) return;
 
-  const intent = detectIntent(prompt);
+  let intent = detectIntent(prompt);
+  if (state.apiOnline && state.authToken) {
+    try {
+      const aiIntent = await detectIntentWithAI(prompt);
+      if (aiIntent) intent = aiIntent;
+    } catch (e) {
+      console.warn("AI intent detection failed, using local fallback");
+    }
+  }
+
   state.project.name = titleFromPrompt(prompt);
   document.getElementById("projectName").value = state.project.name;
   state.project.context.goal = prompt.slice(0, 120);
@@ -1034,9 +1044,9 @@ function safeFileName(value) {
 function escapeHTML(value) {
   return String(value)
     .replace(/&/g, "&amp;")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-    .replace(/"/g, """)
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
 
@@ -1112,8 +1122,7 @@ async function handleAuthSubmit() {
   const body = isSignup ? JSON.stringify({ email, password, name }) : JSON.stringify({ email, password });
 
   try {
-    const baseUrl = API_URL.replace('/api', '');
-    const res = await fetch(`${baseUrl}${endpoint}`, {
+    const res = await fetch(`${API_URL}${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: body
@@ -1176,7 +1185,7 @@ function toggleAuthMode() {
   const nameField = document.getElementById("authNameField");
   const isSignup = modeEl.dataset.mode === "signup";
   modeEl.dataset.mode = isSignup ? "login" : "signup";
-  modeEl.textContent = isSignup ? "Log in instead" : "Create account";
+  modeEl.textContent = isSignup ? "Create account" : "Log in instead";
   document.getElementById("authSubmit").textContent = isSignup ? "Log In" : "Sign Up";
   document.getElementById("authTitle").textContent = isSignup ? "Log In" : "Sign Up";
   if (nameField) nameField.style.display = isSignup ? "none" : "block";
